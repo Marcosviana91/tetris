@@ -30,11 +30,17 @@ class Quadrado:
 	
 	
 	def cair(self, vel):
+		'''verifica colisão com itens abaixo e linha base.
+		retorna verdadeiro enquanto não houver colisão'''
 		cair = False
-		if self.desenhar().bottom+tam_padrao < contorno().bottom:
+		if lista_linha_alt[self._posicao_atual_y-1][self._posicao_atual_x] is not None:
+			if self.desenhar().bottom+tam_padrao < lista_linha_alt[self._posicao_atual_y-1][self._posicao_atual_x].desenhar().top:
+				cair = True 
+		elif self.desenhar().bottom+tam_padrao < contorno().bottom:
+			cair = True
+		if cair:
 			self._y_pos += vel
 			self._posicao_atual_y -= 1
-			cair = True
 		#if self.desenhar()
 		return cair
 		
@@ -45,7 +51,6 @@ class Quadrado:
 	@property
 	def get_pos(self):
 		return (self._posicao_atual_x, self._posicao_atual_y)
-
 
 
 def contorno():
@@ -60,7 +65,6 @@ def controles():#desenha controles tatil
 	return ((botao_direito),( botao_esquerdo), (botao_baixo))#retorno uma tupla com os rect da cada botao (direita, esquerda, baixo)
 
 
-
 #CORES
 BRANCO = (255,255,255)
 PRETO = (0,0,0)
@@ -70,7 +74,6 @@ VERMELHO = (255,0,0)
 
 
 fps = 30 #os calculos continuam acontecendo mesmo que o quadro não seja exibido.
-
 
 pygame.init()#INICIALIZA O MODULO
 relogio = pygame.time.Clock()
@@ -90,19 +93,15 @@ contador = 0#faz uma contagem a cada quadro para simular uma pausa de 1 seg, sem
 pos_linha = contorno()[2]//tam_padrao
 pos_coluna = contorno()[3]//tam_padrao
 
-
-lista_todos = []#lista todos os quadrados que serão desenhados
-lista_linha_pos = ['' for x in range(pos_linha)]#lista todos as posições dos quadrados parados
+lista_linha_pos = [None for x in range(pos_linha)]#lista todas as posições dos quadrados parados
 lista_linha_alt = [lista_linha_pos.copy() for x in range(pos_coluna)]#lista todas as colunas com quadrados
 
-#
-
-lista_todos.append(Quadrado(tam_padrao, largura_tela//2, tela))
+q1 = Quadrado(tam_padrao, largura_tela//2, tela)
 
 while True:
-	lista_todos[-1].desenhar()
 	relogio.tick(fps)
 	tela.fill(PRETO)
+	q1.desenhar()
 	contorno()#desenha o contorno
 	controles()#desenha os controles
 	
@@ -112,37 +111,36 @@ while True:
 			exit()
 		if event.type == KEYDOWN:
 			if event.key in (K_LEFT, K_a):
-				lista_todos[-1].mover_esquerda(tam_padrao)
-			if event.key in (K_RIGHT, K_l):
-				lista_todos[-1].mover_direita(tam_padrao)
-			if event.key == K_SPACE:
+				q1.mover_esquerda(tam_padrao)
+			if event.key in (K_RIGHT, K_l, K_d):
+				q1.mover_direita(tam_padrao)
+			if event.key in (K_SPACE, K_s):
 				contador = fps
 		if event.type == MOUSEBUTTONDOWN:
 			if controles()[0].collidepoint(event.pos):
-				lista_todos[-1].mover_direita(tam_padrao)
+				q1.mover_direita(tam_padrao)
 			if controles()[1].collidepoint(event.pos):
-				lista_todos[-1].mover_esquerda(tam_padrao)
+				q1.mover_esquerda(tam_padrao)
 			if controles()[2].collidepoint(event.pos):
 				contador = fps
 		
 		
-	for item in lista_todos:#desenha cada item da lista_todos
-		item.desenhar()
-	
+	for col in lista_linha_alt:#verifica cada item por coluna
+		for pos in col:#verifica por linha
+			if isinstance(pos,Quadrado):#se for um objeto Quadrado, desenha
+				pos.desenhar()
+			
 	if contador < fps:#conta 1 seg antes de cair
 		contador += 1
 	else:
 		contador = 0
-		if not lista_todos[-1].cair(tam_padrao):#se nao cair
-			print(lista_todos[-1].get_pos)
-			lista_linha_alt[lista_todos[-1].get_pos[1]][lista_todos[-1].get_pos[0]] = lista_todos[-1]
+		if not q1.cair(tam_padrao):#se nao cair, verifica se a linha está completa
+			print(q1.get_pos)
+			lista_linha_alt[q1.get_pos[1]][q1.get_pos[0]] = q1
+			print(lista_linha_alt)
 			for y in range(pos_coluna):
-				if lista_linha_alt[y].count('') == 0:#completou a linha
-					print('Completou a linha')
-					for c in range(pos_linha):
-						i = lista_todos.index(lista_linha_pos[c])
-						del lista_todos[i]# --------- PENDENTE
-					lista_linha_pos = ['' for x in range(len(lista_linha_pos))]#lista todos as posições dos quadrados parados
+				if lista_linha_alt[y].count(None) == 0:#completou a linha
+					lista_linha_alt[y] = [None for x in range(pos_linha)]#apaga os objetos da linha.
 
-			lista_todos.append(Quadrado(tam_padrao, largura_tela//2, tela))
+			q1 = Quadrado(tam_padrao, largura_tela//2, tela)
 	pygame.display.flip()
