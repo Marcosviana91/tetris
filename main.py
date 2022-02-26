@@ -8,7 +8,7 @@ class Quadrado:
 	'''Inicializa o quadrado'''
 	def __init__(self, tam, x, surface):
 		self.tamanho_y = tam
-		self.tamanho_x = tam*choice((1,1))
+		self.tamanho_x = tam
 		self._cor = choice((VERDE, VERMELHO, AZUL,VERDE_ESCURO, CIANO, LARANJA, OURO, ROSA_CHOQUE, INDIGO, VIOLETA))
 		self._x_pos = x - tam//2
 		self._y_pos = altura_tela//10
@@ -18,13 +18,13 @@ class Quadrado:
 
 
 	def mover_direita(self, passo):
-		if self._x_pos+self.tamanho_x < contorno().right  and lista_linha_alt[self._posicao_atual_y][self._posicao_atual_x+1] is None:
+		if self._posicao_atual_x < 4  and lista_linha_alt[self._posicao_atual_y][self._posicao_atual_x+1] is None:
 			self._x_pos += passo
 			self._posicao_atual_x += 1
 
 
 	def mover_esquerda(self, passo):
-		if self._x_pos > contorno().left+tam_padrao and lista_linha_alt[self._posicao_atual_y][self._posicao_atual_x-1] is None:
+		if self._posicao_atual_x > 0 and lista_linha_alt[self._posicao_atual_y][self._posicao_atual_x-1] is None:
 			self._x_pos -= passo
 			self._posicao_atual_x -= 1
 	
@@ -33,7 +33,7 @@ class Quadrado:
 		'''verifica a existencia de itens abaixo ou linha base.
 		retorna verdadeiro enquanto não houver colisão'''
 		cair = False
-		if self.get_rect[1]+self.tamanho_y+15 < contorno().bottom and lista_linha_alt[self._posicao_atual_y-1][self._posicao_atual_x] is None:
+		if self._posicao_atual_y > 0 and lista_linha_alt[self._posicao_atual_y-1][self._posicao_atual_x] is None:
 			cair = True
 		
 		if cair:
@@ -49,15 +49,17 @@ class Quadrado:
 	def get_pos(self):
 		return (self._posicao_atual_x, self._posicao_atual_y)
 		
-	
-	@property
-	def get_rect(self):
-		return (self._x_pos, self._y_pos)
+
+def arredondar(lar):
+	digitos = len(str(lar))
+	potencia = (10**(digitos-1))
+	fator = lar//potencia
+	return potencia*fator
 
 
 def contorno():
 	'''desenha os limitadores do jogo e retorna um Rect'''
-	return pygame.draw.rect(tela,BRANCO,(largura_tela//10*2.3,altura_tela//10,(largura_tela//10*5.3)-11,altura_tela//10*5),15,5)
+	return pygame.draw.rect(tela,BRANCO,(largura_tela//2-(tam_padrao*2.5)-15,(altura_tela//10)-12,largura_tela/2+30,(altura_tela//10*5)+18),10,5)
 
 
 def controles():
@@ -83,6 +85,8 @@ INDIGO = (75,0,130)
 VIOLETA = (148,0,211)
 
 fps = 30 #os calculos continuam acontecendo mesmo que o quadro não seja exibido.
+vel = 1
+contador_max = fps
 
 pygame.init()#INICIALIZA O MODULO
 relogio = pygame.time.Clock()
@@ -95,6 +99,12 @@ print(f'Largura (X): {largura_tela}')
 print(f'Altura (Y): {altura_tela}')
 tam_padrao = (largura_tela//10)
 pygame.display.set_caption('Tetris 0.8')
+
+###TEXTOS###
+ponto = 0
+FONTE_PADRAO = pygame.font.get_default_font()
+FONTE = pygame.font.SysFont(FONTE_PADRAO, tam_padrao)
+FONTEp = pygame.font.SysFont(FONTE_PADRAO, tam_padrao//2)
 
 contador = 0#faz uma contagem a cada quadro para simular uma pausa de 1 seg, sem pausar os calculos.
 
@@ -112,8 +122,18 @@ while True:
 	q1.desenhar()
 	contorno()#desenha o contorno
 	controles()#desenha os controles
+	#HUD
+	mensagem_ponto = f'Pontuação: {ponto}'
+	mensagem_vel = f'Velocidade: {vel}'
+	mensagem_ponto_formatada = FONTE.render(mensagem_ponto, True, VERDE)
+	mensagem_vel_formatada = FONTEp.render(mensagem_vel,True,VERDE)
+	mensagem_fim_de_jogo = ['FIM DE JOGO','APERTE R PARA CONTINUAR']
+	mensagem_fim_de_jogo_linha1 = FONTE.render(mensagem_fim_de_jogo[0], True, VERMELHO)
+	mensagem_fim_de_jogo_linha2 = FONTEp.render(mensagem_fim_de_jogo[1], True, OURO)
+	
+	
 
-	#eventos de interação (contrles)
+	#eventos de interação (controles)
 	for event in pygame.event.get():
 		if event.type == QUIT:
 			pygame.quit()
@@ -123,7 +143,7 @@ while True:
 				q1.mover_esquerda(tam_padrao)
 			if event.key in (K_RIGHT, K_l, K_d):
 				q1.mover_direita(tam_padrao)
-			if event.key in (K_SPACE, K_s):
+			if event.key in (K_SPACE, K_s, K_DOWN):
 				contador = fps
 		if event.type == MOUSEBUTTONDOWN:
 			if controles()[0].collidepoint(event.pos):
@@ -133,17 +153,18 @@ while True:
 			if controles()[2].collidepoint(event.pos):
 				contador = fps
 			
-	if contador < fps:#conta 1 seg antes de cair
-		contador += 1
+	if contador < contador_max:#conta 1 seg antes de cair
+		contador += vel
 	else:
 		contador = 0
 		if not q1.cair():#se nao cair, verifica se a linha está completa e limpa a linha
 			lista_linha_alt[q1.get_pos[1]][q1.get_pos[0]] = q1 #Adiciona o objeto q1 na posição correspondente
 			if lista_linha_alt[q1.get_pos[1]].count(None) == 0:#completou a linha
+				ponto += 5
 				lista_linha_alt[q1.get_pos[1]] = [None for x in range(pos_linha)]#apaga os objetos da linha.
 				
 				#verifica se algum objeto ainda pode cair após limpar a linha de baixo
-				for linha_alt in range(pos_coluna-1):
+				for linha_alt in range(pos_coluna):
 						for linha_pos in range(pos_linha):
 							if lista_linha_alt[linha_alt][linha_pos] is not None:
 								lista_linha_alt[linha_alt][linha_pos].cair()
@@ -152,8 +173,28 @@ while True:
 					
 			#Verifica o fim de jogo
 			if lista_linha_alt[-1][pos_linha//2] is not None:
+				fim_de_jogo = True
+				tela.fill(PRETO)
+				text1 = mensagem_fim_de_jogo_linha1.get_rect().center[0]
+				text2 = mensagem_fim_de_jogo_linha2.get_rect().center[0]
+				tela.blit(mensagem_fim_de_jogo_linha1, (largura_tela//2-text1,altura_tela//2))
+				tela.blit(mensagem_fim_de_jogo_linha2, (largura_tela//2-text2,(altura_tela//2)+tam_padrao))
+				pygame.display.update()
+				while fim_de_jogo:
+					for event in pygame.event.get():
+						if event.type == QUIT:
+							pygame.quit()
+							exit()
+						if event.type == KEYDOWN:
+							if event.key == K_r:
+								fim_de_jogo = False
+						if event.type == MOUSEBUTTONDOWN:
+							if event.pos:
+								fim_de_jogo = False
+								
 				lista_linha_pos = [None for x in range(pos_linha)]
 				lista_linha_alt = [lista_linha_pos.copy() for x in range(pos_coluna)]
+				ponto = 0
 
 			q1 = Quadrado(tam_padrao, largura_tela//2, tela)
 	
@@ -163,4 +204,6 @@ while True:
 			if isinstance(pos,Quadrado):
 				pos.desenhar()
 				
+	tela.blit(mensagem_ponto_formatada, (0,0))
+	tela.blit(mensagem_vel_formatada,(0,tam_padrao))
 	pygame.display.flip()
