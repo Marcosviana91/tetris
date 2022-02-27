@@ -4,51 +4,58 @@ from sys import exit
 from random import choice
 
 
-class Quadrado:
-	'''Inicializa o quadrado'''
-	def __init__(self, tam, x, surface):
-		self.tamanho_y = tam
-		self.tamanho_x = tam
+class Quadrado(Rect):
+	'''Inicializa o quadrado:
+		tam: comprimento e altura do objeto
+		x: posição X onde o objeto será desenhado (sempre no meio da tela)
+		'''
+	def __init__(self, tam, x):
+		self.height = tam
+		self.width = tam * choice((1,1,1,2,2,3))
 		self._cor = choice((VERDE, VERMELHO, AZUL,VERDE_ESCURO, CIANO, LARANJA, OURO, ROSA_CHOQUE, INDIGO, VIOLETA))
-		self._x_pos = x - tam//2
-		self._y_pos = altura_tela//10
-		self._surface = surface
-		self._posicao_atual_x = pos_linha//2#posição inicial/atual na lista_linha_pos
-		self._posicao_atual_y = pos_coluna-1#posição inicial/atual na coluna (lista_linha_alt)
+		self.left = x - tam//2
+		self.top = altura_tela//10
 
 
 	def mover_direita(self, passo):
-		if self._posicao_atual_x < 4  and lista_linha_alt[self._posicao_atual_y][self._posicao_atual_x+1] is None:
-			self._x_pos += passo
-			self._posicao_atual_x += 1
+		mover = False
+		if self.right+passo < contorno().right:
+			mover = True
+			for item in lista_todos:
+				if self.collidepoint(item.centerx-tam_padrao, item.centery):
+					mover = False
+		if mover:
+			self.left += passo
 
 
 	def mover_esquerda(self, passo):
-		if self._posicao_atual_x > 0 and lista_linha_alt[self._posicao_atual_y][self._posicao_atual_x-1] is None:
-			self._x_pos -= passo
-			self._posicao_atual_x -= 1
+		mover = False
+		if self.left-passo > contorno().left:
+			mover = True
+			for item in lista_todos:
+				if self.collidepoint(item.centerx+tam_padrao, item.centery):
+					mover = False
+		if mover:
+			self.left -= passo
 	
 	
 	def cair(self):
 		'''verifica a existencia de itens abaixo ou linha base.
 		retorna verdadeiro enquanto não houver colisão'''
 		cair = False
-		if self._posicao_atual_y > 0 and lista_linha_alt[self._posicao_atual_y-1][self._posicao_atual_x] is None:
+		if self.bottom+self.height < contorno().bottom:
 			cair = True
-		
-		if cair:
-			self._y_pos += tam_padrao
-			self._posicao_atual_y -= 1
+			for item in lista_todos:
+				if self.collidepoint(item.left, item.top-tam_padrao) or self.collidepoint(item.right-10, item.top-tam_padrao) or self.collidepoint(item.centerx, item.top-tam_padrao):
+					cair = False
+			if cair:
+				self.top += tam_padrao
 		return cair
 		
 		
-	def desenhar(self):
-		return pygame.draw.rect(self._surface, self._cor, (self._x_pos, self._y_pos,self.tamanho_x,self.tamanho_y))
-	
-	@property
-	def get_pos(self):
-		return (self._posicao_atual_x, self._posicao_atual_y)
-		
+	def desenhar(self, surface):
+		pygame.draw.rect(surface, self._cor, (self.left, self.top,self.width,self.height))
+
 
 def arredondar(lar):
 	digitos = len(str(lar))
@@ -108,18 +115,16 @@ FONTEp = pygame.font.SysFont(FONTE_PADRAO, tam_padrao//2)
 
 contador = 0#faz uma contagem a cada quadro para simular uma pausa de 1 seg, sem pausar os calculos.
 
-#listas e posicoes
-pos_linha = contorno()[2]//tam_padrao
-pos_coluna = contorno()[3]//tam_padrao
-lista_linha_pos = [None for x in range(pos_linha)]#lista todas as posições dos quadrados parados
-lista_linha_alt = [lista_linha_pos.copy() for x in range(pos_coluna)]#lista todas as colunas com quadrados
+#lista de posicoes
+lista_todos = []
+lista_linhas = (())
 
-q1 = Quadrado(tam_padrao, largura_tela//2, tela)
+q1 = Quadrado(tam_padrao, largura_tela//2)
 
 while True:
 	relogio.tick(fps)
 	tela.fill(PRETO)
-	q1.desenhar()
+	q1.desenhar(tela)
 	contorno()#desenha o contorno
 	controles()#desenha os controles
 	#HUD
@@ -157,22 +162,33 @@ while True:
 		contador += vel
 	else:
 		contador = 0
-		if not q1.cair():#se nao cair, verifica se a linha está completa e limpa a linha
-			lista_linha_alt[q1.get_pos[1]][q1.get_pos[0]] = q1 #Adiciona o objeto q1 na posição correspondente
-			if lista_linha_alt[q1.get_pos[1]].count(None) == 0:#completou a linha
+		if not q1.cair():
+			lista_todos.append(q1) #Adiciona o objeto
+			
+			linha = []
+			for item in lista_todos:
+				if item[1] == q1.y:
+					linha.append(lista_todos.index(item))
+			
+			soma = 0
+			for x in linha:
+				soma += lista_todos[x][2]
+			
+			if soma == tam_padrao*5:
+				linha.sort(reverse=True)
+				for x in linha:
+					del lista_todos[x]
 				ponto += 5
-				lista_linha_alt[q1.get_pos[1]] = [None for x in range(pos_linha)]#apaga os objetos da linha.
+				vel += 1
+				linha.clear()
+
 				
 				#verifica se algum objeto ainda pode cair após limpar a linha de baixo
-				for linha_alt in range(pos_coluna):
-						for linha_pos in range(pos_linha):
-							if lista_linha_alt[linha_alt][linha_pos] is not None:
-								lista_linha_alt[linha_alt][linha_pos].cair()
-								lista_linha_alt[linha_alt-1][linha_pos] = lista_linha_alt[linha_alt][linha_pos]
-								lista_linha_alt[linha_alt][linha_pos] = None
-					
+			for quad in lista_todos:
+				quad.cair()
+			q1 = Quadrado(tam_padrao, largura_tela//2)
 			#Verifica o fim de jogo
-			if lista_linha_alt[-1][pos_linha//2] is not None:
+			if len(lista_todos) > 0 and q1.colliderect(lista_todos[-1]):
 				fim_de_jogo = True
 				tela.fill(PRETO)
 				text1 = mensagem_fim_de_jogo_linha1.get_rect().center[0]
@@ -192,17 +208,12 @@ while True:
 							if event.pos:
 								fim_de_jogo = False
 								
-				lista_linha_pos = [None for x in range(pos_linha)]
-				lista_linha_alt = [lista_linha_pos.copy() for x in range(pos_coluna)]
+				lista_todos.clear()
 				ponto = 0
-
-			q1 = Quadrado(tam_padrao, largura_tela//2, tela)
 	
 	#Desenhar os itens na tela
-	for col in lista_linha_alt:
-		for pos in col:
-			if isinstance(pos,Quadrado):
-				pos.desenhar()
+	for quad in lista_todos:
+		quad.desenhar(tela)
 				
 	tela.blit(mensagem_ponto_formatada, (0,0))
 	tela.blit(mensagem_vel_formatada,(0,tam_padrao))
